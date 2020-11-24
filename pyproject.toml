@@ -4,3 +4,9 @@ include_trailing_comma = true
 known_first_party = "mrack"
 line_length = 88
 multi_line_output = 3
+
+[tool.semantic_release]
+version_variable = [
+    'src/mrack/__init__.py:__version__',
+    'docs/conf.py:release',
+]
