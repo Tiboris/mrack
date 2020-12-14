@@ -76,32 +76,6 @@ def get_group(inventory, groupname):
     return found
 
 
-def add_to_group(inventory, groupname, hostname):
-    """
-    Find a group in inventory layout and add a host to it.
-
-    Returns group or None if it doesn't exist.
-    """
-    group = get_group(inventory, groupname)
-    if not group:
-        return None
-
-    if "hosts" not in group:
-        group["hosts"] = {}
-    group["hosts"][hostname] = {}
-    return group
-
-
-def add_group(inventory, groupname, hostname=None):
-    """Add a group to inventory, optionally add it with hostname."""
-    all_group = inventory["all"]
-    group = {}
-    if hostname:
-        group["hosts"] = {hostname: {}}
-    all_group["children"][groupname] = group
-    return group
-
-
 class AnsibleInventoryOutput:
     """
     Generate Ansible inventory with provisioned machines.
@@ -116,6 +90,30 @@ class AnsibleInventoryOutput:
         self._db = db
         self._metadata = metadata
         self._path = path or DEFAULT_INVENTORY_PATH
+
+    def add_group(self, inventory, groupname, hostname=None):
+        """Add a group to inventory, optionally add it with hostname."""
+        all_group = inventory["all"]
+        group = {}
+        if hostname:
+            group["hosts"] = {hostname: self.create_ansible_host(hostname)}
+        all_group["children"][groupname] = group
+        return group
+
+    def add_to_group(self, inventory, groupname, hostname):
+        """
+        Find a group in inventory layout and add a host to it.
+
+        Returns group or None if it doesn't exist.
+        """
+        group = get_group(inventory, groupname)
+        if not group:
+            return None
+
+        if "hosts" not in group:
+            group["hosts"] = {}
+        group["hosts"][hostname] = self.create_ansible_host(hostname)
+        return group
 
     def create_ansible_host(self, name):
         """Create host entry for Ansible inventory."""
@@ -185,7 +183,7 @@ class AnsibleInventoryOutput:
         )
         if type(inventory) is not dict:
             raise ConfigError("Inventory layout should be a dictionary")
-        all_group = ensure_all_group(inventory)
+        ensure_all_group(inventory)
 
         for host in provisioned.values():
             meta_host, meta_domain = get_host_from_metadata(self._metadata, host.name)
@@ -198,12 +196,10 @@ class AnsibleInventoryOutput:
 
             # Add only a reference custom groups
             for group in groups:
-                added = add_to_group(inventory, group, host.name)
+                added = self.add_to_group(inventory, group, host.name)
                 if not added:  # group doesn't exist
-                    add_group(inventory, group, host.name)
+                    self.add_group(inventory, group, host.name)
 
-            # Main record belongs in "all" group
-            all_group["hosts"][host.name] = self.create_ansible_host(host.name)
         return inventory
 
     def create_output(self):
