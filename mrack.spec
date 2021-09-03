@@ -2,7 +2,7 @@
 %global srcname mrack
 
 Name:           %{srcname}
-Version:        0.14.0
+Version:        1.0.0
 Release:        1%{?dist}
 Summary:        Multicloud use-case based multihost async provisioner for CIs and testing during development
 
