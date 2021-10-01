@@ -95,7 +95,9 @@ class Transformer:
         which are defined in provisioning config.
         """
         if host.get("size"):  # allow to override size by pointing to group in metadata
-            flavor = get_config_value(self.config["flavors"], host["size"])
+            flavor = get_config_value(
+                self.config["flavors"], host["size"], default=host["size"]
+            )
         else:  # default action based on host group define the flavor of instance
             flavor = get_config_value(self.config["flavors"], host["group"])
 
