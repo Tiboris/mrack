@@ -130,7 +130,8 @@ class Provider:
                 )
                 break
 
-            if datetime.now() - start_ssh >= timedelta(seconds=(timeout / 2)):
+            # do not divide by 2 because 10 minutes is too few for windows... use 20
+            if datetime.now() - start_ssh >= timedelta(seconds=timeout):
                 logger.error(
                     f"{self.dsp_name}: SSH to host '{host.ip_addr}' "
                     f"timed out after {duration:.1f}s"
