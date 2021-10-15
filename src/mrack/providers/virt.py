@@ -148,6 +148,7 @@ class VirtProvider(Provider):
         result.update(
             {
                 "mrack_req_os": req["os"],
+                "mrack_req_group": req["group"],
                 "mrack_req_name": req["name"],
             }
         )
@@ -174,5 +175,6 @@ class VirtProvider(Provider):
         result["fault"] = prov_result.get("error")
         result["password"] = prov_result["password"]
         result["os"] = prov_result.get("mrack_req_os")
+        result["group"] = prov_result.get("mrack_req_group")
 
         return result

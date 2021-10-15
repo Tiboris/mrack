@@ -186,6 +186,7 @@ class Provider:
                             host_id=req.get("name"),
                             name=req.get("name"),
                             operating_system=req.get("os"),
+                            group=req.get("group"),
                             ip_addrs=[],
                             status=STATUS_OTHER,
                             rawdata=req,
@@ -227,6 +228,7 @@ class Provider:
                         host_id=response.args[SPECS].get("host_id"),
                         name=response.args[SPECS].get("name"),
                         operating_system=response.args[SPECS].get("os"),
+                        group=response.args[SPECS].get("group"),
                         ip_addrs=[],
                         status=STATUS_OTHER,
                         rawdata=response.args,
@@ -289,7 +291,8 @@ class Provider:
             for host in active_hosts:
                 # go host by host and load the group and os based configuration for ssh
                 os_check = based_check.get("os", {}).get(host.operating_system, {})
-                opts = default_check | os_check  # sorted by priority
+                group_check = based_check.get("group", {}).get(host.group, {})
+                opts = default_check | group_check | os_check  # sorted by priority
 
                 logger.debug(
                     f"{self.dsp_name}: Host '{host.name}' "
@@ -470,6 +473,7 @@ class Provider:
             host_info.get("id"),
             host_info.get("name"),
             host_info.get("os"),
+            host_info.get("group"),
             host_info.get("addresses"),
             self.status_map.get(host_info.get("status"), STATUS_OTHER),
             provisioning_result,

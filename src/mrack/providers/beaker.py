@@ -287,6 +287,7 @@ chmod go-w /root /root/.ssh /root/.ssh/authorized_keys
             "status": prov_result["status"],
             "fault": None,
             "os": prov_result.get("mrack_req_os"),
+            "group": prov_result.get("mrack_req_group"),
         }
 
         if prov_result["result"] != "Pass":
@@ -387,6 +388,7 @@ chmod go-w /root /root/.ssh /root/.ssh/authorized_keys
                 "JobID": beaker_id,
                 "mrack_req_name": req["name"],
                 "mrack_req_os": req["os"],
+                "mrack_req_group": req["group"],
             }
         )
         return resource

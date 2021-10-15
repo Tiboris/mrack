@@ -202,6 +202,7 @@ class AWSProvider(Provider):
         result["addresses"] = [prov_result.get("PublicIpAddress")]
         result["status"] = prov_result["State"]["Name"]
         result["os"] = prov_result.get("mrack_req_os")
+        result["os"] = prov_result.get("mrack_req_group")
 
         return result
 
@@ -214,7 +215,12 @@ class AWSProvider(Provider):
         result = {}
         try:  # returns dict with aws instance information
             result = response["Reservations"][0]["Instances"][0]
-            result.update("mrack_req_os", req["os"])
+            result.update(
+                {
+                    "mrack_req_os": req["os"],
+                    "mrack_req_group": req["group"],
+                }
+            )
         except (KeyError, IndexError) as data_err:
             raise ProvisioningError(
                 "Unexpected data format in response "

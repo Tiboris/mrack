@@ -560,6 +560,9 @@ class OpenStackProvider(Provider):
         if specs.get("network"):
             del specs["network"]
 
+        if specs.get("group"):
+            del specs["group"]
+
         error_attempts = 0
         while error_attempts < SERVER_ERROR_RETRY:
             try:
@@ -694,6 +697,7 @@ class OpenStackProvider(Provider):
         server.update(
             {
                 "mrack_req_os": req["os"],
+                "mrack_req_group": req["group"],
                 "mrack_req_name": req["name"],
             }
         )
@@ -717,5 +721,6 @@ class OpenStackProvider(Provider):
         result["fault"] = prov_result.get("fault")
         result["status"] = prov_result.get("status")
         result["os"] = prov_result.get("mrack_req_os")
+        result["group"] = prov_result.get("mrack_req_group")
 
         return result
