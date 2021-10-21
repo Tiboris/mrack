@@ -550,6 +550,12 @@ class OpenStackProvider(Provider):
         if specs.get("flavor"):
             del specs["flavor"]
 
+        if "ad" in specs["group"] or "win" in specs["group"] or "win" in specs["image"]:
+            # if the host name contains "." character which is not supported for
+            # windows OS as host name or the host name is an FQDN we use only
+            # first part of domain name as host identifier for openstack
+            specs["name"] = specs["name"].split(".")[0]
+
         image = self._translate_image(req)
         specs["imageRef"] = image["id"]
         if specs.get("image"):

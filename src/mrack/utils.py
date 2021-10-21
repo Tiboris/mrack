@@ -167,7 +167,8 @@ def get_host_from_metadata(metadata, name):
     domains = metadata.get("domains", [])
     for domain in domains:
         for host in domain.get("hosts", []):
-            if host["name"] == name:
+            # use startswith as for ad we use only first part of FQDN
+            if host["name"].startswith(name):
                 return host, domain
 
     return None, None
@@ -189,7 +190,11 @@ def is_windows_host(meta_host):
 
 def get_username(host, meta_host, config):
     """Find username from sources db/metadata/config."""
-    username = host.username or meta_host.get("username")
+    if host:
+        username = host.username or meta_host.get("username")
+    else:
+        username = meta_host.get("username")
+
     default_user = get_config_value(config["users"], meta_host["os"])
 
     if is_windows_host(meta_host):
