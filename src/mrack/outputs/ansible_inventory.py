@@ -133,14 +133,16 @@ class AnsibleInventoryOutput:
         ansible_user = get_username(db_host, meta_host, self._config)
         password = get_password(db_host, meta_host, self._config)
         ssh_key = get_ssh_key(db_host, meta_host, self._config)
+        dom_name = meta_domain["name"]
 
         # Common attributes
         host_info = {
             "ansible_host": ansible_host,
             "ansible_python_interpreter": python,
             "ansible_user": ansible_user,
-            "meta_fqdn": name,
-            "meta_domain": meta_domain["name"],
+            "meta_fqdn": name if name.endswith(dom_name) else f"{name}.{dom_name}",
+            "meta_host_name": name,
+            "meta_domain": dom_name,
             "meta_provider": db_host.provider.name,
             "meta_provider_id": db_host.host_id,
             "meta_ip": ip_addr,
