@@ -264,7 +264,7 @@ class Provider:
 
         # check ssh connectivity to hosts if not disabled per host or provider
         if bool(ssh_check):
-            if not isinstance(dict, ssh_check):
+            if not isinstance(ssh_check, dict):
                 ssh_check = {}
 
             # check if default config is in place, if not use defaults
