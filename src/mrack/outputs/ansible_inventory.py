@@ -123,7 +123,7 @@ class AnsibleInventoryOutput:
         db_host = self._db.hosts[name]
 
         ip_addr = db_host.ip_addr
-        ansible_host = resolve_hostname(ip_addr) or ip_addr
+        ansible_host = resolve_hostname(ip_addr) or meta_host.get("name", ip_addr)
 
         python = (
             self._config["python"].get(meta_host["os"])
