@@ -25,7 +25,7 @@ from mrack.utils import find_value_in_config_hierarchy
 logger = logging.getLogger(__name__)
 
 
-def resolve_hostname(ip_addr, timeout_minutes=2, sleep_seconds=10):
+def resolve_hostname(ip_addr, timeout_minutes=0.1, sleep_seconds=2):
     """
     Resolve IP address to hostname.
 
@@ -50,7 +50,7 @@ def resolve_hostname(ip_addr, timeout_minutes=2, sleep_seconds=10):
         except socket_error:
             pass
 
-    logger.debug(f"Result of the DNS lookup: {res if res else 'Failed'}")
+    logger.info(f"Result of the DNS lookup: {res if res else 'Failed'}")
     return res
 
 
