@@ -1,7 +1,7 @@
 # Created by pyp2rpm-3.3.5
 %global srcname mrack
 
-Name:           %{srcname}
+Name:           mrack
 Version:        1.8.1
 Release:        1%{?dist}
 Summary:        Multicloud use-case based multihost async provisioner for CIs and testing during development
@@ -12,35 +12,81 @@ Source0:        https://github.com/neoave/mrack/releases/download/v%{version}/mr
 BuildArch:      noarch
 
 BuildRequires:  python3-devel
-BuildRequires:  python3-AsyncOpenStackClient
-BuildRequires:  beaker-client
-BuildRequires:  python3-boto3
-BuildRequires:  python3-botocore
 BuildRequires:  python3-click
 BuildRequires:  python3-pyyaml
 BuildRequires:  python3-setuptools
 
+# coma separated list of provider plugins
+%global provider_plugins aws,beaker,openstack,podman,virt
+
 %description
 mrack is a provisioning library for CI and local multi-host testing supporting multiple
-provisioning providers (e.g. OpenStack, Beaker). But in comparison to other multi-cloud
+provisioning providers (e.g. AWS, Beaker, Openstack). But in comparison to other multi-cloud
 libraries, the aim is to be able to describe host from application perspective.
 
-%{?python_provide:%python_provide %{srcname}}
+%{?python_provide:%python_provide %{name}}
 
-Requires:       python3-AsyncOpenStackClient
-Requires:       beaker-client
-Requires:       podman
-Requires:       python3-boto3
-Requires:       python3-botocore
+Requires:       %{name}-core
+Requires:       %{name}-aws
+Requires:       %{name}-beaker
+Suggests:       %{name}-openstack
+Requires:       %{name}-podman
+Requires:       %{name}-virt
+
+%package        core
+Summary:        Core mrack libraries
 Requires:       python3-click
 Requires:       python3-pyyaml
-Requires:       testcloud
 Requires:       sshpass
 
+%package        aws
+Summary:        AWS provider plugin for mrack
+Requires:       %{name}-core-%{version}-%{release}
+Requires:       python3-boto3
+Requires:       python3-botocore
+
+%package        beaker
+Summary:        Beaker provider plugin for mrack
+Requires:       %{name}-core-%{version}-%{release}
+Requires:       beaker-client
+
+%package        openstack
+Summary:        Openstack provider plugin for mrack
+Requires:       %{name}-core-%{version}-%{release}
+Suggests:       python3-AsyncOpenStackClient
+
+%package        podman
+Summary:        Podman provider plugin for mrack
+Requires:       %{name}-core-%{version}-%{release}
+Requires:       podman
+
+%package        virt
+Summary:        Virtualization provider plugin for mrack using testcloud
+Requires:       %{name}-core-%{version}-%{release}
+Requires:       testcloud
+
+%description    core
+mrack-core contains core mrack functionalities and static provider
+
+%description    aws
+%{name}-aws is an additional AWS provisioning library extending mrack package
+
+%description    beaker
+%{name}-beaker is an additional Beaker provisioning library extending mrack package
+
+%description    openstack
+%{name}-openstack is an additional OpenStack provisioning library extending mrack package
+
+%description    podman
+%{name}-podman is an additional Podman provisioning library extending mrack package
+
+%description    virt
+%{name}-virt is an additional Virualization provisioning library extending mrack package using testcloud
+
 %prep
-%autosetup -n %{srcname}-%{version}
+%autosetup -p1 -n %{name}-%{version}
 # Remove bundled egg-info
-rm -rf %{srcname}.egg-info
+rm -rf %{name}.egg-info
 
 %build
 %py3_build
@@ -48,12 +94,38 @@ rm -rf %{srcname}.egg-info
 %install
 %py3_install
 
-%files -n %{srcname}
+%files
+%license LICENSE
+%doc README.md
+
+%files core
 %license LICENSE
 %doc README.md
 %{_bindir}/mrack
-%{python3_sitelib}/%{srcname}
-%{python3_sitelib}/%{srcname}-%{version}-py%{python3_version}.egg-info
+%{python3_sitelib}/%{name}
+%{python3_sitelib}/%{name}-%{version}-py%{python3_version}.egg-info
+%exclude %{python3_sitelib}/%{name}/providers/{,__pycache__/}{%{provider_plugins}}.*
+%exclude %{python3_sitelib}/%{name}/transformers/{,__pycache__/}{%{provider_plugins}}.*
+
+%files aws
+%{python3_sitelib}/%{name}/providers/{,__pycache__/}aws.*
+%{python3_sitelib}/%{name}/transformers/{,__pycache__/}aws.*
+
+%files beaker
+%{python3_sitelib}/%{name}/providers/{,__pycache__/}aws.*
+%{python3_sitelib}/%{name}/transformers/{,__pycache__/}aws.*
+
+%files openstack
+%{python3_sitelib}/%{name}/providers/{,__pycache__/}openstack.*
+%{python3_sitelib}/%{name}/transformers/{,__pycache__/}openstack.*
+
+%files podman
+%{python3_sitelib}/%{name}/providers/{,__pycache__/}podman.*
+%{python3_sitelib}/%{name}/transformers/{,__pycache__/}podman.*
+
+%files virt
+%{python3_sitelib}/%{name}/providers/{,__pycache__/}virt.*
+%{python3_sitelib}/%{name}/transformers/{,__pycache__/}virt.*
 
 %changelog
 * Mon Oct 10 2022 Tibor Dudlák <tdudlak@redhat.com> - 1.8.1-1
