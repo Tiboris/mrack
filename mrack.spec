@@ -22,12 +22,10 @@ BuildRequires:  python3-setuptools
 
 %description
 mrack is a provisioning library for CI and local multi-host testing supporting multiple
-provisioning providers (e.g. OpenStack, Beaker). But in comparison to other multi-cloud
+provisioning providers (e.g. AWS, Beaker). But in comparison to other multi-cloud
 libraries, the aim is to be able to describe host from application perspective.
 
 %{?python_provide:%python_provide %{srcname}}
-
-Requires:       python3-AsyncOpenStackClient
 Requires:       beaker-client
 Requires:       podman
 Requires:       python3-boto3
@@ -36,6 +34,14 @@ Requires:       python3-click
 Requires:       python3-pyyaml
 Requires:       testcloud
 Requires:       sshpass
+
+%package        openstack
+Summary:        Multicloud use-case based multihost async provisioner for CIs and testing during development
+Requires:       %{srcname}-%{version}-%{release}
+Requires:       python3-AsyncOpenStackClient
+
+%description    openstack
+mrack-openstack is an additional OpenStack provisioning library extending mrack package
 
 %prep
 %autosetup -n %{srcname}-%{version}
@@ -54,6 +60,12 @@ rm -rf %{srcname}.egg-info
 %{_bindir}/mrack
 %{python3_sitelib}/%{srcname}
 %{python3_sitelib}/%{srcname}-%{version}-py%{python3_version}.egg-info
+%exclude %{python3_sitelib}/%{srcname}/src/mrack/providers/{,__pycache__/}openstack.*
+%exclude %{python3_sitelib}/%{srcname}/src/mrack/transformers/{,__pycache__/}/openstack.*
+
+%files openstack
+%{python3_sitelib}/%{srcname}/src/mrack/providers/{,__pycache__/}openstack.*
+%{python3_sitelib}/%{srcname}/src/mrack/transformers/{,__pycache__/}openstack.*
 
 %changelog
 * Tue Sep 20 2022 Tibor Dudlák <tdudlak@redhat.com> - 1.7.0-1
