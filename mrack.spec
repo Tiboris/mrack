@@ -9,6 +9,7 @@ Summary:        Multicloud use-case based multihost async provisioner for CIs an
 License:        Apache License 2.0
 URL:            https://github.com/neoave/mrack
 Source0:        https://github.com/neoave/mrack/releases/download/v%{version}/mrack-%{version}.tar.gz
+Patch0:         0001-mrack-no-asyncopenstack-client.patch
 BuildArch:      noarch
 
 BuildRequires:  python3-devel
@@ -38,13 +39,13 @@ Requires:       sshpass
 %package        openstack
 Summary:        Multicloud use-case based multihost async provisioner for CIs and testing during development
 Requires:       %{srcname}-%{version}-%{release}
-Requires:       python3-AsyncOpenStackClient
+Suggests:       python3-AsyncOpenStackClient
 
 %description    openstack
 mrack-openstack is an additional OpenStack provisioning library extending mrack package
 
 %prep
-%autosetup -n %{srcname}-%{version}
+%autosetup -p1 -n %{srcname}-%{version}
 # Remove bundled egg-info
 rm -rf %{srcname}.egg-info
 
@@ -60,12 +61,12 @@ rm -rf %{srcname}.egg-info
 %{_bindir}/mrack
 %{python3_sitelib}/%{srcname}
 %{python3_sitelib}/%{srcname}-%{version}-py%{python3_version}.egg-info
-%exclude %{python3_sitelib}/%{srcname}/src/mrack/providers/{,__pycache__/}openstack.*
-%exclude %{python3_sitelib}/%{srcname}/src/mrack/transformers/{,__pycache__/}/openstack.*
+%exclude %{python3_sitelib}/%{srcname}/providers/{,__pycache__/}openstack.*
+%exclude %{python3_sitelib}/%{srcname}/transformers/{,__pycache__/}/openstack.*
 
 %files openstack
-%{python3_sitelib}/%{srcname}/src/mrack/providers/{,__pycache__/}openstack.*
-%{python3_sitelib}/%{srcname}/src/mrack/transformers/{,__pycache__/}openstack.*
+%{python3_sitelib}/%{srcname}/providers/{,__pycache__/}openstack.*
+%{python3_sitelib}/%{srcname}/transformers/{,__pycache__/}openstack.*
 
 %changelog
 * Tue Sep 20 2022 Tibor Dudlák <tdudlak@redhat.com> - 1.7.0-1
