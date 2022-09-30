@@ -1,5 +1,5 @@
 # Created by pyp2rpm-3.3.5
-%global srcname mrack
+%global srcname pyton3-mrack
 
 Name:           %{srcname}
 Version:        1.7.0
