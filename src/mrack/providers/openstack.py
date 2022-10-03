@@ -18,7 +18,7 @@ import asyncio
 import logging
 from copy import deepcopy
 from datetime import datetime, timedelta
-from random import choice, random
+from random import random, sample
 from urllib.parse import parse_qs, urlparse
 
 from asyncopenstackclient import AuthPassword, GlanceClient
@@ -47,6 +47,8 @@ PROVISIONER_KEY = "openstack"
 SERVER_ERROR_RETRY = 5  # number of times to retry server creation
 SERVER_ERROR_SLEEP = 10  # seconds
 SERVER_RES_SLEEP = 10  # minutes
+NAME = 0
+SIZE = 1
 
 
 class OpenStackProvider(Provider):
@@ -206,15 +208,37 @@ class OpenStackProvider(Provider):
 
         return network_types
 
-    def _pick_network(self, network_type, count):
-        """
-        Pick network based network type and needed amount.
+    def _pick_network(self, host_name, host_weight, networks_weights):
+        """Pick network based network type and weight of host."""
+        chosen = tuple()
+        for net in networks_weights:
+            if host_weight <= net[SIZE]:
+                chosen = net
+                logger.debug(
+                    f"{self.dsp_name} [{host_name}] Weight of host "
+                    f"{host_weight:.3f} fell into interval {chosen[SIZE]:.3f}"
+                )
+                break
 
-        Usable network with most IPs available is picked.
+        if not chosen:
+            raise ProviderError(f"{self.dsp_name} Fatal: No network has been chosen")
+
+        logger.debug(f"{self.dsp_name} [{host_name}] Picked network {chosen[NAME]}")
+
+        return chosen[NAME]
+
+    def _get_usable_networks(self, network_type, requested_ip_cnt):
         """
-        possible_networks = self.network_pools[network_type]
-        networks = [self.get_network(net) for net in possible_networks]
+        Return list of available networks and ip availability.
+
+        Available networks with most IPs available is picked.
+        """
+        possible_nets = self.network_pools[network_type]
+        # filter out the None values - the get_network return None if network not found
+        networks = list(filter(None, [self.get_network(net) for net in possible_nets]))
         usable = []
+        low_avail_nets = []
+        total_available = 0
         for network in networks:
             if not network:
                 continue
@@ -222,41 +246,48 @@ class OpenStackProvider(Provider):
             ips = self.get_ips(ref=network.get("id"))
 
             available = ips["total_ips"] - ips["used_ips"]
-            logger.debug(f"Network: {network['name']}")
+            logger.debug(f"{self.dsp_name} Network: {network['name']}")
             logger.debug(f"  total: {ips['total_ips']}")
             logger.debug(f"  used: {ips['used_ips']}")
             logger.debug(f"  available: {available}")
-            if available > count:
-                usable.append((network["name"], available))
+
+            total_available += available
+
+            #  assume network is unusable when < 5% IPs left - (12/251) when IPv4
+            if available / ips["total_ips"] < 0.05:
+                low_avail_nets.append((network["name"], available))
+                continue
+
+            usable.append((network["name"], available))
+
+        if total_available > requested_ip_cnt and low_avail_nets:
+            usable += low_avail_nets
+
         if not usable:
-            logger.error(
-                f"{self.dsp_name} Error: no usable network"
-                f" for {count} hosts with {network_type}"
+            raise ProviderError(
+                f"{self.dsp_name} Error: no available networks"
+                f" for {requested_ip_cnt} hosts with {network_type}"
             )
-            return None
 
-        # sort networks by number of available IPs
-        usable = sorted(usable, key=lambda u: u[1])
-        logger.debug(f"{self.dsp_name} Listing usable networks: {usable}")
+        if len(usable) > requested_ip_cnt:
+            usable = sample(usable, requested_ip_cnt)
 
-        # Do not always pick the best, but randomize from good ones to spread
-        # load for high number of parallel jobs. E.g. if running mrack 100 times
-        # where each needs 3-4 hosts and best network has 250 IPs then we risk
-        # to pass the check intially but later fail as the check was not done
-        # with all the others on mind (race-condition).
+        return sorted(usable, key=lambda u: u[SIZE], reverse=True)
 
-        # Good == has at least 50% of IPs as the best.
-        best_pool = usable[-1]
-        satisfying = [n for n in usable if n[1] / best_pool[1] > 0.5]
-        logger.debug(
-            f"{self.dsp_name} Picking randomly from network pools which satisfy "
-            f"requirement (size_of_pool/size_of_biggest > 0.5): {satisfying}"
-        )
-        chosen = choice(satisfying)
-        logger.debug(
-            f"{self.dsp_name} Network picked: {chosen[0]} with {chosen[1]} addresses"
-        )
-        return chosen[0]
+    def _get_weights_from_usable(self, usable_networks):
+        """Define map of network type and weight of usable_networks."""
+        total_weight = sum(net[SIZE] for net in usable_networks)
+        weights = [(net[NAME], net[SIZE] / total_weight) for net in usable_networks]
+        if len(weights) == 1:
+            return weights
+
+        for w_index in range(1, len(weights)):
+            weights[w_index] = (
+                weights[w_index][NAME],
+                weights[w_index - 1][SIZE] + weights[w_index][SIZE],
+            )
+
+        return weights
 
     def translate_network_types(self, hosts):
         """Pick the right OpenStack networks for all hosts.
@@ -271,8 +302,21 @@ class OpenStackProvider(Provider):
         nt_requirements = self._aggregate_networks(hosts)
         nt_map = {}
         for network_type, count in nt_requirements.items():
-            network_name = self._pick_network(network_type, count)
-            nt_map[network_type] = network_name
+            nt_map[network_type] = self._get_usable_networks(network_type, count)
+
+        weight_map = {}
+        for network_type, usable_networks in nt_map.items():
+            weight_map[network_type] = self._get_weights_from_usable(
+                usable_networks,
+            )
+
+        for net_type, netw_weights in weight_map.items():
+            logger.debug(
+                f"{self.dsp_name} Considered networks "
+                f"for {net_type} (network_name, weight_interval):"
+            )
+            for net in netw_weights:
+                logger.debug(f"  {net}")
 
         for host in hosts:
             # skip hosts which have low-level network names defined
@@ -286,8 +330,12 @@ class OpenStackProvider(Provider):
             if not self.network_pools.get(network_type):
                 continue
 
-            network_name = nt_map[network_type]
-            host["network"] = network_name
+            networks_weights = weight_map[network_type]
+            host["network"] = self._pick_network(
+                host_name=host["name"],
+                host_weight=hosts.index(host) / len(hosts),
+                networks_weights=networks_weights,
+            )
 
     def _set_networks(self, networks):
         """Extend provider configuration with list of networks."""
