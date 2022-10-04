@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from copy import deepcopy
 from unittest import mock
 from unittest.mock import Mock, patch
 
@@ -19,6 +20,118 @@ import pytest
 from mrack.providers.openstack import OpenStackProvider
 
 from .utils import get_data  # FIXME do not use relative import
+
+predefined_hosts = [
+    {
+        "name": "f-latest-0.mrack.test",
+        "os": "fedora-latest",
+        "group": "ipaclient",
+        "flavor": "ci.standard.xs",
+        "image": "idm-Fedora-Cloud-Base-37-latest",
+        "key_name": "idm-jenkins",
+        "network": "IPv4",
+        "config_drive": True,
+    },
+    {
+        "name": "f-latest-1.mrack.test",
+        "os": "fedora-latest",
+        "group": "ipaclient",
+        "flavor": "ci.standard.xs",
+        "image": "idm-Fedora-Cloud-Base-37-latest",
+        "key_name": "idm-jenkins",
+        "network": "IPv4",
+        "config_drive": True,
+    },
+    {
+        "name": "f-latest-2.mrack.test",
+        "os": "fedora-latest",
+        "group": "ipaclient",
+        "flavor": "ci.standard.xs",
+        "image": "idm-Fedora-Cloud-Base-37-latest",
+        "key_name": "idm-jenkins",
+        "network": "IPv4",
+        "config_drive": True,
+    },
+]
+
+amended_nets = {
+    "net_1": {
+        "network_id": "9b42e096-7517-11ea-824f-e470b821142a",
+        "network_name": "net_1",
+        "project_id": "6ecd972c751711ea824fe470b821142a",
+        "subnet_ip_availability": [
+            {
+                "cidr": "10.0.10.0/22",
+                "ip_version": 4,
+                "subnet_id": "a4b9e214-7517-11ea-824f-e470b821142a",
+                "subnet_name": "provider_net_subnet_net_1",
+                "total_ips": 1000,
+                "used_ips": 100,
+            }
+        ],
+        "tenant_id": "6ecd972c751711ea824fe470b821142a",
+        "total_ips": 1010,
+        "used_ips": 462,
+    },
+    "net_2": {
+        "network_id": "a50332fc-7517-11ea-824f-e470b821142a",
+        "network_name": "net_2",
+        "project_id": "6ecd972c751711ea824fe470b821142a",
+        "subnet_ip_availability": [
+            {
+                "cidr": "10.0.20.0/22",
+                "ip_version": 4,
+                "subnet_id": "3389431e-d528-4dfe-a42e-f21d2ec25ac0",
+                "subnet_name": "provider_net_subnet_net_2",
+                "total_ips": 1000,
+                "used_ips": 500,
+            }
+        ],
+        "tenant_id": "6ecd972c751711ea824fe470b821142a",
+        "total_ips": 18446744073709552623,
+        "used_ips": 1060,
+    },
+    "net_3": {
+        "network_id": "daf913c9-cc06-4755-83fc-ece66d628d2d",
+        "network_name": "net_3",
+        "project_id": "6ecd972c751711ea824fe470b821142a",
+        "subnet_ip_availability": [
+            {
+                "cidr": "10.0.30.0/22",
+                "ip_version": 4,
+                "subnet_id": "ebf607e0-63c0-491d-988f-d9829c1efcf3",
+                "subnet_name": "provider_net_subnet_net_3",
+                "total_ips": 1010,
+                "used_ips": 990,
+            }
+        ],
+        "tenant_id": "6ecd972c751711ea824fe470b821142a",
+        "total_ips": 1010,
+        "used_ips": 379,
+    },
+}
+
+net1_usable = deepcopy(amended_nets)
+net1_usable["net_3"]["subnet_ip_availability"][0]["used_ips"] = 990
+
+
+net_pools = get_data("network_pools.json")
+network_data = [
+    (
+        "empty-hosts",  # test name
+        [],  # hosts
+        {},  # network pools
+        {},  # networks
+        [],  # result
+    ),
+    (
+        "test1-host",
+        [predefined_hosts[0]],
+        net_pools,
+        net1_usable,
+        ["net_1", "net_3"],
+    ),
+]
 
 
 def AsyncMock(*args, **kwargs):
@@ -37,6 +150,7 @@ class TestOpenStackProvider:
         self.flavors = get_data("flavors.json")
         self.images = get_data("images.json")
         self.availabilities = get_data("network_availabilities.json")
+        self.network_pools = get_data("network_pools.json")
         self.networks = get_data("networks.json")
 
         self.auth_patcher = patch("mrack.providers.openstack.AuthPassword")
@@ -127,3 +241,18 @@ class TestOpenStackProvider:
     async def test_provision(self):
         provider = OpenStackProvider()
         await provider.init(image_names=[])
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("x", network_data, ids=[x[0] for x in network_data])
+    async def test_network_picking_validation(self, x):
+        _, hosts, pools, networks, exp_nets = x
+        reqs = deepcopy(hosts)
+        provider = OpenStackProvider()
+        provider.networks = provider.networks | networks
+        await provider.init(image_names=[], networks=pools)  # why but OK FIXME
+        provider.translate_network_types(hosts)
+        assert len(hosts) == len(reqs)
+        for i in range(len(hosts)):
+            assert hosts[i] != reqs[i]
+            assert hosts[i]["network"] in pools.get(reqs[i]["network"])
+            assert hosts[i]["network"] in exp_nets
