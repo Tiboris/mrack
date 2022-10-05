@@ -214,10 +214,11 @@ class OpenStackProvider(Provider):
         for net in networks_weights:
             if host_weight <= net[SIZE]:
                 chosen = net
-                logger.debug(
-                    f"{self.dsp_name} [{host_name}] Weight of host "
-                    f"{host_weight:.3f} fell into interval {chosen[SIZE]:.3f}"
-                )
+                if len(networks_weights) > 1:
+                    logger.debug(
+                        f"{self.dsp_name} [{host_name}] Weight of host "
+                        f"{host_weight:.3f} fell into interval {chosen[SIZE]:.3f}"
+                    )
                 break
 
         if not chosen:
@@ -269,17 +270,27 @@ class OpenStackProvider(Provider):
                 f" for {requested_ip_cnt} hosts with {network_type}"
             )
 
-        if len(usable) > requested_ip_cnt:
-            usable = sample(usable, requested_ip_cnt)
+        sorted_networks = sorted(usable, key=lambda u: u[SIZE], reverse=True)
 
-        return sorted(usable, key=lambda u: u[SIZE], reverse=True)
+        if requested_ip_cnt < sorted_networks[-1][SIZE] / 2:
+            # if requested ip count is smaller than 50% of smallest IP network
+            return sample(usable, 1)  # return one random network
+
+        if len(usable) > requested_ip_cnt:
+            usable = sorted(
+                sample(usable, requested_ip_cnt), key=lambda u: u[SIZE], reverse=True
+            )
+
+        return usable
 
     def _get_weights_from_usable(self, usable_networks):
         """Define map of network type and weight of usable_networks."""
+        if len(usable_networks) == 1:
+            #  skip calculations if one network is usable
+            return [(usable_networks[0][NAME], 1)]
+
         total_weight = sum(net[SIZE] for net in usable_networks)
         weights = [(net[NAME], net[SIZE] / total_weight) for net in usable_networks]
-        if len(weights) == 1:
-            return weights
 
         for w_index in range(1, len(weights)):
             weights[w_index] = (
@@ -535,7 +546,6 @@ class OpenStackProvider(Provider):
         """Validate that all hosts requirements contains existing required objects."""
         # translate network type to actual network and check network availabilities
         self.translate_network_types(reqs)
-
         for req in reqs:
             logger.info(f"{self.dsp_name} Validating host: {object2json(req)}")
             self.validate_host(req)
