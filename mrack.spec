@@ -9,6 +9,7 @@ Summary:        Multicloud use-case based multihost async provisioner for CIs an
 License:        Apache License 2.0
 URL:            https://github.com/neoave/mrack
 Source0:        https://github.com/neoave/mrack/releases/download/v%{version}/mrack-%{version}.tar.gz
+Patch0:         0001-mrack-no-asyncopenstack-client.patch
 BuildArch:      noarch
 
 BuildRequires:  python3-devel
