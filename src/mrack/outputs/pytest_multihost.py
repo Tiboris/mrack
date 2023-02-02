@@ -125,15 +125,24 @@ class PytestMultihostOutput:
                     mhcfg["ad_sub_hostname"] = host["name"]
                     mhcfg["ad_sub_ip"] = host["ip"]
 
-                domain_custom_attrs = domain.get("pytest_multihost", {})
-                host_custom_attrs = host.get("pytest_multihost", {})
+                glob_custom_attrs = deepcopy(
+                    self._metadata.get("pytest_multihost", {})
+                )
+                domain_custom_attrs = deepcopy(
+                    domain.get("pytest_multihost", {})
+                )
+                host_custom_attrs = deepcopy(
+                    host.get("pytest_multihost", {})
+                )
 
                 rm_keys = [key for key in host.keys() if key not in host_allowed_attrs]
                 for key in rm_keys:
                     del host[key]
 
-                if host_custom_attrs or domain_custom_attrs:
-                    host.update(domain_custom_attrs | host_custom_attrs)
+                if any([glob_custom_attrs, domain_custom_attrs, host_custom_attrs]):
+                    host.update(
+                        glob_custom_attrs | domain_custom_attrs | host_custom_attrs
+                    )
 
             domain_rm_keys = [
                 key for key in domain.keys() if key not in ["name", "type", "hosts"]
