@@ -77,7 +77,7 @@ jobs:
           mrack.spec
       - name: Add version to specfile
         run: |
-          export $SPEC_VERSION_REGEX="'s/^Version:(\s+)(.*)/Version:\1$NEW_VERSION/'"
+          export SPEC_VERSION_REGEX="s/^Version:(\s+)(.*)/Version:\1$NEW_VERSION/"
           echo $SPEC_VERSION_REGEX
           sed -i -E $SPEC_VERSION_REGEX mrack.spec
       - name: Add specfile to commit
